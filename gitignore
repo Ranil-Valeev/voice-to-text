@@ -1,0 +1,21 @@
+# Бинарники
+*.exe
+*.dll
+
+# Временные аудиофайлы
+tmp/
+
+# Модели whisper — большие файлы, не кладём в git
+whisper.cpp/models/*.bin
+whisper.cpp/models/*.bin.part
+
+# Собранные файлы whisper.cpp
+whisper.cpp/build/
+
+# Go
+*.test
+*.out
+
+# IDE
+.vscode/
+.idea/
