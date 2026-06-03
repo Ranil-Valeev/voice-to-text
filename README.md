@@ -70,10 +70,4 @@ curl http://localhost:8080/health
 | base   | 141MB  | средняя  |
 | small  | 466MB  | хорошая  |
 
-По умолчанию используется `base`. Для лучшей точности скачай `small`:
-
-```bash
-bash models/download-ggml-model.sh small
-```
-
-И поменяй `WHISPER_MODEL` на путь к новой модели.
+По умолчанию используется `base`. Для лучшей точности `small`
