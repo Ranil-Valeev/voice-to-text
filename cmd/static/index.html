@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>voice-to-text</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0, 229, 160, 0.1);
+    --text: #e8e8e8;
+    --muted: #666;
+    --error: #ff4d4d;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  header {
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-family: var(--mono);
+  }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    background: var(--surface);
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .drop-text {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .drop-text strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .file-formats {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .file-selected {
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    display: none;
+  }
+
+  .volume-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .vol-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 4px;
+    cursor: pointer;
+  }
+
+  .vol-value {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .vol-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    padding-left: 16px;
+  }
+
+  .btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 14px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn:hover { opacity: 0.88; }
+  .btn:active { transform: scale(0.99); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  .status {
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status.running { color: var(--accent); }
+  .status.error { color: var(--error); }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  .result-box {
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .result-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .result-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: background 0.2s;
+  }
+
+  .copy-btn:hover { background: var(--accent-dim); }
+
+  .result-text {
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  footer {
+    margin-top: 32px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".m4a,.mov,.mp3,.wav,.ogg,.mp4">
+    <span class="drop-icon">🎙</span>
+    <div class="drop-text">
+      <strong>Выбери файл</strong> или перетащи сюда
+    </div>
+    <div class="file-formats">m4a · mov · mp3 · wav · ogg</div>
+    <div class="file-selected" id="fileSelected"></div>
+  </div>
+
+  <div class="volume-row">
+    <span class="vol-label">УСИЛЕНИЕ</span>
+    <input type="range" id="volumeSlider" min="1" max="8" step="0.5" value="1">
+    <span class="vol-value" id="volValue">1.0×</span>
+  </div>
+
+  <button class="btn" id="sendBtn" disabled>ТРАНСКРИБИРОВАТЬ</button>
+
+  <div class="status" id="status"></div>
+
+  <div class="result-box" id="resultBox">
+    <div class="result-header">
+      <span class="result-label">РЕЗУЛЬТАТ</span>
+      <button class="copy-btn" id="copyBtn">скопировать</button>
+    </div>
+    <div class="result-text" id="resultText"></div>
+  </div>
+
+  <footer>
+    <span>whisper.cpp · base model</span>
+    <span id="footerTime"></span>
+  </footer>
+</div>
+
+<script>
+  const fileInput = document.getElementById('fileInput');
+  const dropZone = document.getElementById('dropZone');
+  const sendBtn = document.getElementById('sendBtn');
+  const status = document.getElementById('status');
+  const resultBox = document.getElementById('resultBox');
+  const resultText = document.getElementById('resultText');
+  const copyBtn = document.getElementById('copyBtn');
+  const fileSelected = document.getElementById('fileSelected');
+
+  let selectedFile = null;
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) selectFile(fileInput.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+  });
+
+  function selectFile(file) {
+    selectedFile = file;
+    fileSelected.textContent = '▸ ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)';
+    fileSelected.style.display = 'block';
+    sendBtn.disabled = false;
+    setStatus('', '');
+    resultBox.style.display = 'none';
+  }
+
+  function setStatus(type, msg) {
+    status.className = 'status ' + type;
+    status.innerHTML = msg ? (type === 'running' ? '<span class="dot"></span>' : '') + msg : '';
+  }
+
+  const volumeSlider = document.getElementById('volumeSlider');
+  const volValue = document.getElementById('volValue');
+
+  volumeSlider.addEventListener('input', () => {
+    volValue.textContent = parseFloat(volumeSlider.value).toFixed(1) + '×';
+  });
+
+  sendBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    sendBtn.disabled = true;
+    setStatus('running', 'обрабатываю... это может занять минуту');
+    resultBox.style.display = 'none';
+
+    const start = Date.now();
+    const form = new FormData();
+    form.append('audio', selectedFile);
+    form.append('volume', volumeSlider.value);
+
+    try {
+      const res = await fetch('/transcribe', { method: 'POST', body: form });
+      const data = await res.json();
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+
+      if (data.error) {
+        setStatus('error', data.error);
+      } else {
+        setStatus('', '');
+        resultText.textContent = data.text;
+        resultBox.style.display = 'block';
+        document.getElementById('footerTime').textContent = elapsed + 's';
+      }
+    } catch (e) {
+      setStatus('error', 'сервер недоступен');
+    }
+
+    sendBtn.disabled = false;
+  });
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(resultText.textContent);
+    copyBtn.textContent = 'скопировано ✓';
+    setTimeout(() => copyBtn.textContent = 'скопировать', 2000);
+  });
+</script>
+</body>
+</html>

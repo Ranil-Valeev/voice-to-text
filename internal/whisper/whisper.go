@@ -8,38 +8,32 @@ import (
 	"strings"
 )
 
-// Transcribe принимает путь к аудиофайлу (любой формат),
-// конвертирует его в wav через ffmpeg и запускает whisper.cpp
-func Transcribe(inputPath string) (string, error) {
+func Transcribe(inputPath string, volume float64) (string, error) {
 	wavPath := strings.TrimSuffix(inputPath, filepath.Ext(inputPath)) + ".wav"
 	defer os.Remove(wavPath)
 
-	// Шаг 1: конвертируем в wav 16kHz моно — именно такой формат нужен whisper
 	ffmpeg := exec.Command("ffmpeg",
-		"-y", // перезаписать если существует
+		"-y",
 		"-i", inputPath,
-		"-ar", "16000", // частота дискретизации 16kHz
-		"-ac", "2", // моно
+		"-ar", "16000",
+		"-ac", "1",
+		"-af", fmt.Sprintf("volume=%.1f", volume),
 		"-f", "wav",
 		wavPath,
 	)
 
 	if out, err := ffmpeg.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("whisper err=%v output=%q", err, string(out))
+		return "", fmt.Errorf("ffmpeg: %s", string(out))
 	}
 
-	// Шаг 2: запускаем whisper.cpp
-	// --model  — путь к модели (положи рядом с проектом)
-	// --output-txt — сохранить результат в файл .txt
-	// --language ru — русский язык (поменяй если нужен другой)
 	modelPath := os.Getenv("WHISPER_MODEL")
 	if modelPath == "" {
-		modelPath = "models/ggml-base.bin" // путь по умолчанию
+		modelPath = "models/ggml-base.bin"
 	}
 
 	whisperBin := os.Getenv("WHISPER_BIN")
 	if whisperBin == "" {
-		whisperBin = "whisper.cpp/main" // путь по умолчанию
+		whisperBin = "whisper.cpp/main"
 	}
 
 	cmd := exec.Command(whisperBin,
@@ -50,11 +44,11 @@ func Transcribe(inputPath string) (string, error) {
 		wavPath,
 	)
 
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("whisper: %s", string(out))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("whisper err=%v output=%q", err, string(out))
 	}
 
-	// whisper.cpp сохраняет результат в файл wavPath.txt
 	txtPath := wavPath + ".txt"
 	defer os.Remove(txtPath)
 

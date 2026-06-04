@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/Ranil-Valeev/voice-to-text/internal/whisper"
 )
@@ -26,7 +27,6 @@ func Transcribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничиваем размер файла — 100 MB
 	r.Body = http.MaxBytesReader(w, r.Body, 100<<20)
 
 	file, header, err := r.FormFile("audio")
@@ -37,9 +37,16 @@ func Transcribe(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	log.Printf("получен файл: %s (%.2f MB)", header.Filename, float64(header.Size)/1024/1024)
+	// Читаем громкость из формы, по умолчанию 1.0
+	volume := 1.0
+	if v := r.FormValue("volume"); v != "" {
+		if parsed, err := strconv.ParseFloat(v, 64); err == nil && parsed > 0 {
+			volume = parsed
+		}
+	}
 
-	// Сохраняем входной файл во временную папку
+	log.Printf("получен файл: %s (%.2f MB), усиление: %.1fx", header.Filename, float64(header.Size)/1024/1024, volume)
+
 	tmpInput := filepath.Join("tmp", header.Filename)
 	dst, err := os.Create(tmpInput)
 	if err != nil {
@@ -57,8 +64,7 @@ func Transcribe(w http.ResponseWriter, r *http.Request) {
 	}
 	dst.Close()
 
-	// Конвертируем в wav и транскрибируем
-	text, err := whisper.Transcribe(tmpInput)
+	text, err := whisper.Transcribe(tmpInput, volume)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(response{Error: fmt.Sprintf("ошибка транскрибации: %s", err.Error())})
